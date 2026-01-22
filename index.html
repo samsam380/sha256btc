@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bitcoin SHA256d Block Header Visualizer</title>
+  <style>
+    :root {
+      --bg: #0D3643;
+      --surface: #123F4F;
+      --text: #E6F1F3;
+      --muted: #9FB7BF;
+      --accent: #F2A65A;
+      --accent-hover: #FFB703;
+      --danger: #ff6b6b;
+      --ok: #8be28b;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --radius: 14px;
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+      --border: 1px solid rgba(230,241,243,.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 800px at 20% 10%, rgba(242,166,90,.12), transparent 50%),
+                  radial-gradient(900px 600px at 80% 30%, rgba(255,183,3,.10), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 28px 18px 10px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: .2px; }
+    .sub { margin: 0; color: var(--muted); line-height: 1.4; }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 430px 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
+
+    .card {
+      background: linear-gradient(180deg, rgba(18,63,79,.92), rgba(18,63,79,.78));
+      border: var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .card h2 { margin: 0 0 10px; font-size: 16px; color: var(--text); }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      border-radius: 12px;
+      border: var(--border);
+      background: rgba(13,54,67,.7);
+      color: var(--text);
+      padding: 10px 12px;
+      font-family: var(--mono);
+      outline: none;
+    }
+    input[type="number"] { appearance: textfield; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; }
+    @media (max-width: 980px) { .row3 { grid-template-columns: 1fr; } }
+
+    .btnrow { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 650;
+      background: var(--accent);
+      color: #1b1b1b;
+      transition: transform .05s ease, background .15s ease;
+    }
+    button:hover { background: var(--accent-hover); }
+    button:active { transform: translateY(1px); }
+    .ghost {
+      background: rgba(242,166,90,.14);
+      color: var(--text);
+      border: var(--border);
+    }
+    .ghost:hover { background: rgba(255,183,3,.20); }
+    .small { font-size: 12px; padding: 8px 10px; border-radius: 10px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: var(--border);
+      border-radius: 999px;
+      background: rgba(13,54,67,.5);
+      color: var(--muted);
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+    .hashbox {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: var(--border);
+      background: rgba(13,54,67,.65);
+      font-family: var(--mono);
+      word-break: break-all;
+      line-height: 1.35;
+      font-size: 12px;
+    }
+    .muted { color: var(--muted); }
+    .ok { color: var(--ok); }
+    .danger { color: var(--danger); }
+
+    .panelHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .panelHead .meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+    details {
+      border: var(--border);
+      background: rgba(13,54,67,.45);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    summary {
+      cursor: pointer;
+      list-style: none;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    summary::-webkit-details-marker { display: none; }
+    .sumRight { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 600; font-size: 12px; }
+    .kpi {
+      display: grid; gap: 6px;
+      padding: 10px;
+      border-radius: 12px;
+      border: var(--border);
+      background: rgba(18,63,79,.35);
+    }
+    .kpi .t { font-size: 12px; color: var(--muted); }
+    .kpi .v { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+
+    .split { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+
+    .tableWrap {
+      margin-top: 10px;
+      border-radius: 12px;
+      border: var(--border);
+      overflow: auto;
+      max-height: 520px;
+      background: rgba(13,54,67,.35);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(230,241,243,.10);
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      background: rgba(18,63,79,.92);
+      color: var(--muted);
+      text-align: left;
+      z-index: 1;
+    }
+    tr:hover td { background: rgba(255,183,3,.06); }
+
+    .note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .badge {
+      display: inline-flex;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: var(--border);
+      background: rgba(242,166,90,.12);
+      color: var(--accent-hover);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .inline { display: inline-flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: var(--border);
+      background: rgba(13,54,67,.55);
+      padding: 8px 10px;
+      border-radius: 999px;
+      user-select: none;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .toggle input { accent-color: var(--accent-hover); }
+    .hl {
+      outline: 2px solid rgba(255,183,3,.35);
+      box-shadow: 0 0 0 3px rgba(255,183,3,.10) inset;
+    }
+    .seg {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 10px;
+      border-radius: 12px;
+      border: var(--border);
+      background: rgba(18,63,79,.25);
+      margin-top: 10px;
+    }
+    .seg .k { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+    .seg .v { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+    .seg .mini { color: var(--muted); font-size: 11px; margin-top: 4px; line-height: 1.35; }
+    .mono { font-family: var(--mono); }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Bitcoin SHA256d Block Header Visualizer</h1>
+    <p class="sub">
+      Build a real 80-byte Bitcoin block header (version, prevhash, merkleroot, time, bits, nonce),
+      serialize it exactly like Bitcoin, then hash it twice: <span class="badge">SHA256(SHA256(header))</span>.
+      Change the nonce and watch the hash “jump”.
+    </p>
+  </header>
+
+  <div class="wrap">
+    <!-- Left controls -->
+    <section class="card">
+      <h2>Header Builder</h2>
+
+      <div class="row">
+        <div>
+          <label>Version (uint32)</label>
+          <input id="version" type="number" min="0" step="1" value="4" />
+        </div>
+        <div>
+          <label>Timestamp (unix, uint32)</label>
+          <input id="timestamp" type="number" min="0" step="1" value="1700000000" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Bits (compact, uint32 hex)</label>
+          <input id="bits" type="text" value="170fffff" spellcheck="false" />
+        </div>
+        <div>
+          <label>Nonce (uint32)</label>
+          <input id="nonce" type="number" min="0" step="1" value="0" />
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <label>Previous block hash (32 bytes hex, as explorers display)</label>
+        <input id="prev" type="text" spellcheck="false"
+          value="0000000000000000000000000000000000000000000000000000000000000000" />
+      </div>
+
+      <div style="margin-top:10px">
+        <label>Merkle root (32 bytes hex, as explorers display)</label>
+        <input id="merkle" type="text" spellcheck="false"
+          value="4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f90112233445566778899aabbccddeeff00" />
+      </div>
+
+      <div class="btnrow">
+        <button id="hashBtn">Hash now (SHA256d)</button>
+        <button id="nextBtn" class="ghost">Next nonce (+1)</button>
+        <button id="randBtn" class="ghost">Random header</button>
+      </div>
+
+      <div class="btnrow">
+        <button id="fetchTipBtn" class="ghost small">Load latest block (mempool.space)</button>
+        <button id="fetchHeightBtn" class="ghost small">Load by height</button>
+        <input id="heightIn" type="number" class="small" min="0" step="1" value="0" style="width:140px" />
+      </div>
+
+      <div class="note">
+        <div class="inline">
+          <span class="pill">Header size: <b id="hdrSize">80</b> bytes</span>
+          <span class="pill">Mode: <b id="modePill">local</b></span>
+        </div>
+        <div class="note">
+          Uses <span class="badge">WebCrypto</span> for fast hashing (requires HTTPS or localhost).
+        </div>
+      </div>
+
+      <div class="seg">
+        <div class="k">Demo success rule</div>
+        <div class="v">
+          <div class="inline">
+            <label class="toggle"><input id="demoOn" type="checkbox" checked> Enable demo target</label>
+            <span class="pill">Leading hex zeros: <b id="lzVal">3</b></span>
+          </div>
+          <input id="lz" type="range" min="0" max="8" value="3" style="width:100%; margin-top:10px;" />
+          <div class="mini">
+            This does <b>not</b> change the header. It only changes the “found!” condition so you can get a hit
+            in ~5–10 nonce clicks (depending on the slider).
+          </div>
+        </div>
+      </div>
+
+      <div class="btnrow">
+        <button id="autoFindBtn" class="small">Auto-find demo nonce</button>
+        <button id="stopBtn" class="ghost small" disabled>Stop</button>
+      </div>
+
+      <div class="hashbox" id="statusBox">
+        <span class="muted">Ready. Click “Hash now”.</span>
+      </div>
+    </section>
+
+    <!-- Right output -->
+    <section class="card">
+      <div class="panelHead">
+        <div>
+          <h2>Hash Trace</h2>
+          <div class="muted" id="metaLine">Not hashed yet.</div>
+        </div>
+        <div class="meta">
+          <span class="pill">SHA256d</span>
+          <span class="pill" id="powPill">pow: —</span>
+        </div>
+      </div>
+
+      <div id="output"></div>
+    </section>
+  </div>
+
+<script>
+/* ==========================
+   Bitcoin header essentials
+   ==========================
+   Bitcoin block header is 80 bytes:
+     version (4) | prevhash (32) | merkleroot (32) | time (4) | bits (4) | nonce (4)
+   Integers are little-endian.
+   Hashes are usually *displayed* big-endian, but serialized in the header as raw bytes.
+   Explorer "block hash" is the SHA256d result reversed for display.
+*/
+
+const $ = (id)=>document.getElementById(id);
+
+function clampU32(n){ return (Number(n) >>> 0); }
+
+function hexClean(s){
+  return (s||"").trim().toLowerCase().replace(/^0x/,'').replace(/\s+/g,'');
+}
+function isHex(s){ return /^[0-9a-f]*$/.test(s); }
+
+function u32ToLEBytes(u){
+  u = clampU32(u);
+  return new Uint8Array([u & 255, (u>>>8)&255, (u>>>16)&255, (u>>>24)&255]);
+}
+function bytesToHex(bytes){
+  return Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function hexToBytes(hex){
+  hex = hexClean(hex);
+  if (!isHex(hex) || hex.length % 2) throw new Error("Invalid hex");
+  const out = new Uint8Array(hex.length/2);
+  for (let i=0;i<out.length;i++){
+    out[i] = parseInt(hex.slice(i*2,i*2+2), 16);
+  }
+  return out;
+}
+function reverseBytes(u8){
+  const out = new Uint8Array(u8.length);
+  for (let i=0;i<u8.length;i++) out[i] = u8[u8.length-1-i];
+  return out;
+}
+
+async function sha256(u8){
+  const buf = await crypto.subtle.digest("SHA-256", u8);
+  return new Uint8Array(buf);
+}
+async function sha256d(u8){
+  const h1 = await sha256(u8);
+  const h2 = await sha256(h1);
+  return { h1, h2 };
+}
+
+/* Compact bits (nBits) -> target BigInt (big-endian integer) */
+function compactToTarget(bitsU32){
+  const nBits = clampU32(bitsU32);
+  const exponent = (nBits >>> 24) & 0xff;
+  let mantissa = nBits & 0x007fffff;
+
+  // sign bit (0x00800000) not expected for valid nBits
+  // Target = mantissa * 256^(exponent-3)
+  let target;
+  if (exponent <= 3){
+    mantissa = mantissa >>> (8 * (3 - exponent));
+    target = BigInt(mantissa);
+  } else {
+    target = BigInt(mantissa) << BigInt(8 * (exponent - 3));
+  }
+  return target;
+}
+
+function bigIntToHex(bi){
+  let hex = bi.toString(16);
+  if (hex.length % 2) hex = "0" + hex;
+  return hex;
+}
+
+function leadingHexZerosCount(hexStr){
+  let c = 0;
+  for (const ch of hexStr){
+    if (ch === '0') c++;
+    else break;
+  }
+  return c;
+}
+
+function mkDetails(title, rightText, contentNodes, open=false){
+  const d = document.createElement('details');
+  if (open) d.open = true;
+  const s = document.createElement('summary');
+  s.innerHTML = `<span>${title}</span><span class="sumRight">${rightText||""}</span>`;
+  d.appendChild(s);
+  contentNodes.forEach(n => d.appendChild(n));
+  return d;
+}
+
+function el(tag, attrs={}, children=[]){
+  const n = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)){
+    if (k === 'class') n.className = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const c of children){
+    n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return n;
+}
+
+function mkTable(headers, rows){
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  headers.forEach(h => trh.appendChild(el('th',{},[h])));
+  thead.appendChild(trh);
+  const tbody = el('tbody');
+  rows.forEach(r=>{
+    const tr = el('tr');
+    r.forEach(c=>tr.appendChild(el('td',{},[String(c)])));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  return table;
+}
+
+function copyToClipboard(text){
+  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  return Promise.resolve();
+}
+
+/* ==========================
+   Header build + render
+   ========================== */
+
+function readHeaderInputs(){
+  const version = clampU32($('version').value);
+  const timestamp = clampU32($('timestamp').value);
+  const nonce = clampU32($('nonce').value);
+
+  const bitsHex = hexClean($('bits').value);
+  if (!/^[0-9a-f]{8}$/.test(bitsHex)) throw new Error("Bits must be 8 hex chars (e.g. 1d00ffff)");
+  const bits = clampU32(parseInt(bitsHex, 16));
+
+  const prevHex = hexClean($('prev').value);
+  const merkleHex = hexClean($('merkle').value);
+  if (!/^[0-9a-f]{64}$/.test(prevHex)) throw new Error("Previous block hash must be 64 hex chars (32 bytes).");
+  if (!/^[0-9a-f]{64}$/.test(merkleHex)) throw new Error("Merkle root must be 64 hex chars (32 bytes).");
+
+  // Explorer display is big-endian; header expects raw bytes in little-endian for these hashes.
+  const prevLE = reverseBytes(hexToBytes(prevHex));
+  const merkleLE = reverseBytes(hexToBytes(merkleHex));
+
+  const header = new Uint8Array(80);
+  header.set(u32ToLEBytes(version), 0);
+  header.set(prevLE, 4);
+  header.set(merkleLE, 36);
+  header.set(u32ToLEBytes(timestamp), 68);
+  header.set(u32ToLEBytes(bits), 72);
+  header.set(u32ToLEBytes(nonce), 76);
+
+  return {
+    version, timestamp, bits, nonce,
+    prevHexBE: prevHex, merkleHexBE: merkleHex,
+    prevLE, merkleLE,
+    header
+  };
+}
+
+function renderHeaderBreakdown(h){
+  const headerHex = bytesToHex(h.header);
+
+  const segs = [
+    { name: "version (4)",   off: 0,  len: 4,  note: "uint32 little-endian" },
+    { name: "prevhash (32)", off: 4,  len: 32, note: "32 bytes (reversed vs explorer display)" },
+    { name: "merkleroot(32)",off: 36, len: 32, note: "32 bytes (reversed vs explorer display)" },
+    { name: "time (4)",      off: 68, len: 4,  note: "uint32 little-endian (unix time)" },
+    { name: "bits (4)",      off: 72, len: 4,  note: "uint32 little-endian (compact target)" },
+    { name: "nonce (4)",     off: 76, len: 4,  note: "uint32 little-endian" },
+  ];
+
+  const rows = segs.map(s=>{
+    const slice = h.header.slice(s.off, s.off + s.len);
+    const hex = bytesToHex(slice);
+    return [s.name, `${s.off}..${s.off+s.len-1}`, hex, s.note];
+  });
+
+  const tbl = mkTable(["field","bytes","hex (serialized)","note"], rows);
+
+  const wrap = el('div', {}, [
+    el('div', {class:'kpi'}, [
+      el('div', {class:'t'}, ["Serialized header (80 bytes hex)"]),
+      el('div', {class:'v'}, [headerHex])
+    ]),
+    el('div', {class:'tableWrap'}, [tbl]),
+    el('div', {class:'note'}, [
+      "Note: prevhash and merkleroot are entered in explorer display order (big-endian). ",
+      "Bitcoin serializes them into the header as raw bytes, which appear reversed in hex."
+    ])
+  ]);
+
+  return wrap;
+}
+
+function renderHashOutputs({h, h1, h2, blockHashBEHex, realPowOk, demoPowOk, targetHex, targetBEHex32}){
+  const out = $('output');
+  out.innerHTML = '';
+
+  const demoEnabled = $('demoOn').checked;
+  const lz = Number($('lz').value);
+
+  const kpis = el('div', {class:'split'}, [
+    el('div', {class:'kpi'}, [
+      el('div', {class:'t'}, ["SHA256(header) (hex)"]),
+      el('div', {class:'v'}, [bytesToHex(h1)])
+    ]),
+    el('div', {class:'kpi'}, [
+      el('div', {class:'t'}, ["SHA256d(header) (internal bytes hex)"]),
+      el('div', {class:'v'}, [bytesToHex(h2)])
+    ]),
+  ]);
+
+  const kpis2 = el('div', {class:'split', style:'margin-top:10px;'}, [
+    el('div', {class:'kpi'}, [
+      el('div', {class:'t'}, ["Block hash (display) = reverse(SHA256d)"]),
+      el('div', {class:'v'}, [blockHashBEHex])
+    ]),
+    el('div', {class:'kpi'}, [
+      el('div', {class:'t'}, ["Target (from bits) (big-endian hex, minimal)"]),
+      el('div', {class:'v'}, [targetHex])
+    ]),
+  ]);
+
+  const powLine = el('div', {class:'hashbox'}, [
+    el('div', {html:
+      `<span class="muted">Real PoW check:</span> hash ≤ target ? ` +
+      `<b class="${realPowOk ? 'ok':'danger'}">${realPowOk ? 'TRUE' : 'false'}</b>`
+    }),
+    el('div', {html:
+      `<span class="muted">Demo check:</span> leading hex zeros ≥ ${lz} ? ` +
+      `<b class="${demoEnabled && demoPowOk ? 'ok':'danger'}">${demoEnabled && demoPowOk ? 'TRUE' : 'false'}</b>` +
+      ` <span class="muted">(hash has ${leadingHexZerosCount(blockHashBEHex)} leading zeros)</span>`
+    }),
+  ]);
+
+  const copyRow = el('div', {class:'btnrow'}, [
+    el('button', {class:'small copyBtn'}, ["Copy block hash"]),
+    el('button', {class:'small ghost'}, ["Copy header (hex)"]),
+    el('button', {class:'small ghost'}, ["Copy bits-target (32B hex)"]),
+  ]);
+  copyRow.children[0].addEventListener('click', async ()=>{
+    await copyToClipboard(blockHashBEHex);
+    copyRow.children[0].textContent = "Copied!";
+    setTimeout(()=>copyRow.children[0].textContent="Copy block hash", 800);
+  });
+  copyRow.children[1].addEventListener('click', async ()=>{
+    await copyToClipboard(bytesToHex(h.header));
+    copyRow.children[1].textContent = "Copied!";
+    setTimeout(()=>copyRow.children[1].textContent="Copy header (hex)", 800);
+  });
+  copyRow.children[2].addEventListener('click', async ()=>{
+    await copyToClipboard(targetBEHex32);
+    copyRow.children[2].textContent = "Copied!";
+    setTimeout(()=>copyRow.children[2].textContent="Copy bits-target (32B hex)", 800);
+  });
+
+  out.appendChild(mkDetails("1) Build the 80-byte header (Bitcoin serialization)", "80 bytes", [renderHeaderBreakdown(h)], true));
+  out.appendChild(mkDetails("2) First hash: SHA256(header)", "32 bytes", [kpis], true));
+  out.appendChild(mkDetails("3) Second hash: SHA256(SHA256(header))", "32 bytes", [
+    kpis2,
+    powLine,
+    copyRow,
+    el('div',{class:'note'},[
+      "Explorer block hashes are shown in display order (big-endian). Internally, SHA256d output bytes are reversed for display."
+    ])
+  ], true));
+}
+
+function targetTo32ByteHexBE(target){
+  // pad to 32 bytes big-endian hex
+  let hex = bigIntToHex(target);
+  if (hex.length > 64) hex = hex.slice(-64); // should not happen for valid bits
+  return hex.padStart(64,'0');
+}
+
+/* ==========================
+   Demo: find nonce quickly
+   ========================== */
+
+let autoRunning = false;
+let stopFlag = false;
+
+async function hashAndRender(){
+  const demoEnabled = $('demoOn').checked;
+
+  const h = readHeaderInputs();
+
+  const tStart = performance.now();
+  const {h1, h2} = await sha256d(h.header);
+  const tMs = performance.now() - tStart;
+
+  // Display block hash (reverse for display)
+  const blockHashBE = reverseBytes(h2);
+  const blockHashBEHex = bytesToHex(blockHashBE);
+
+  // Real target from bits
+  const target = compactToTarget(h.bits);
+  const hashBI = BigInt("0x" + blockHashBEHex);
+  const realPowOk = (hashBI <= target);
+
+  // Demo check: leading zeros on display hash
+  const lz = Number($('lz').value);
+  const demoPowOk = blockHashBEHex.startsWith("0".repeat(lz));
+
+  const targetHex = bigIntToHex(target);
+  const targetBEHex32 = targetTo32ByteHexBE(target);
+
+  $('metaLine').textContent =
+    `Hashed in ~${tMs.toFixed(2)} ms • nonce=${h.nonce} • bits=0x${h.bits.toString(16).padStart(8,'0')}`;
+
+  $('powPill').textContent = demoEnabled
+    ? `pow: demo ${demoPowOk ? '✓' : '×'} | real ${realPowOk ? '✓' : '×'}`
+    : `pow: real ${realPowOk ? '✓' : '×'}`;
+
+  $('statusBox').innerHTML =
+    `<div><span class="muted">Block hash:</span> <span class="${(demoEnabled && demoPowOk) || realPowOk ? 'ok':'danger'}">${blockHashBEHex}</span></div>` +
+    `<div class="muted">SHA256d internal (not reversed): ${bytesToHex(h2)}</div>`;
+
+  renderHashOutputs({h, h1, h2, blockHashBEHex, realPowOk, demoPowOk, targetHex, targetBEHex32});
+  return { demoPowOk, realPowOk, blockHashBEHex };
+}
+
+async function autoFindDemoNonce(){
+  if (autoRunning) return;
+  autoRunning = true;
+  stopFlag = false;
+  $('stopBtn').disabled = false;
+  $('autoFindBtn').disabled = true;
+
+  try{
+    const demoEnabled = $('demoOn').checked;
+    if (!demoEnabled) throw new Error("Enable demo target first.");
+
+    // Chunked search to keep UI smooth
+    let tries = 0;
+    const MAX_TRIES = 250000; // safety
+    const CHUNK = 400;
+
+    while (!stopFlag && tries < MAX_TRIES){
+      for (let i=0;i<CHUNK;i++){
+        $('nonce').value = String(clampU32(Number($('nonce').value) + 1));
+        const r = await hashAndRender();
+        tries++;
+        if (r.demoPowOk) {
+          $('statusBox').innerHTML =
+            `<div class="ok"><b>Found demo nonce!</b> nonce=${$('nonce').value}</div>` +
+            `<div class="muted">Tries: ${tries}</div>`;
+          stopFlag = true;
+          break;
+        }
+      }
+      // yield to UI
+      await new Promise(requestAnimationFrame);
+    }
+
+    if (!stopFlag){
+      $('statusBox').innerHTML =
+        `<div class="danger"><b>Stopped.</b></div>` +
+        `<div class="muted">Tried ${tries} nonces.</div>`;
+    }
+  } catch(e){
+    $('statusBox').innerHTML = `<span class="danger">Error:</span> ${String(e && e.message ? e.message : e)}`;
+  } finally {
+    autoRunning = false;
+    $('stopBtn').disabled = true;
+    $('autoFindBtn').disabled = false;
+  }
+}
+
+/* ==========================
+   Random / Fetch real blocks
+   ========================== */
+
+function randHex(bytes){
+  const u = new Uint8Array(bytes);
+  crypto.getRandomValues(u);
+  return bytesToHex(u);
+}
+function randomizeHeader(){
+  // version: pick common-ish small values
+  $('version').value = String([2,3,4,0x20000000][Math.floor(Math.random()*4)] >>> 0);
+  $('timestamp').value = String((Math.floor(Date.now()/1000)) >>> 0);
+
+  // bits: keep something valid-looking; default to very easy regtest-like
+  // You can replace this with fetched bits anytime.
+  $('bits').value = "207fffff"; // super easy (not mainnet), good for demonstration
+
+  $('prev').value = randHex(32);
+  $('merkle').value = randHex(32);
+  $('nonce').value = "0";
+  $('modePill').textContent = "random";
+}
+
+async function fetchJson(url){
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.json();
+}
+async function fetchText(url){
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return res.text();
+}
+
+/*
+  mempool.space REST API (Esplora compatible):
+    GET /api/blocks/tip/height
+    GET /api/block-height/:height   -> returns block hash
+    GET /api/block/:hash            -> JSON with version, timestamp, bits, nonce, merkle_root, previousblockhash
+    GET /api/block/:hash/header     -> 80-byte header hex
+  Docs: https://mempool.space/docs/api/rest (includes /api/block/:hash/header)
+*/
+async function loadFromMempoolByHash(hash){
+  const base = "https://mempool.space/api";
+  const blk = await fetchJson(`${base}/block/${hash}`);
+  // blk fields include: version, timestamp, bits, nonce, merkle_root, previousblockhash
+  $('version').value = String(clampU32(blk.version));
+  $('timestamp').value = String(clampU32(blk.timestamp));
+  $('bits').value = clampU32(blk.bits).toString(16).padStart(8,'0');
+  $('nonce').value = String(clampU32(blk.nonce));
+  $('merkle').value = hexClean(blk.merkle_root);
+  $('prev').value = hexClean(blk.previousblockhash);
+  $('modePill').textContent = "mempool.space";
+}
+
+async function loadLatestFromMempool(){
+  const base = "https://mempool.space/api";
+  const tipHeight = await fetchText(`${base}/blocks/tip/height`);
+  const h = parseInt(tipHeight, 10);
+  $('heightIn').value = String(h);
+  const hash = await fetchText(`${base}/block-height/${h}`);
+  await loadFromMempoolByHash(hexClean(hash));
+}
+
+async function loadByHeightFromMempool(height){
+  const base = "https://mempool.space/api";
+  const hash = await fetchText(`${base}/block-height/${height}`);
+  await loadFromMempoolByHash(hexClean(hash));
+}
+
+/* ==========================
+   Wire UI
+   ========================== */
+
+$('hdrSize').textContent = "80";
+
+$('lz').addEventListener('input', ()=>{ $('lzVal').textContent = $('lz').value; });
+$('lzVal').textContent = $('lz').value;
+
+$('hashBtn').addEventListener('click', async ()=>{
+  try{
+    await hashAndRender();
+  } catch(e){
+    $('statusBox').innerHTML = `<span class="danger">Error:</span> ${String(e && e.message ? e.message : e)}`;
+  }
+});
+
+$('nextBtn').addEventListener('click', async ()=>{
+  try{
+    $('nonce').value = String(clampU32(Number($('nonce').value) + 1));
+    await hashAndRender();
+  } catch(e){
+    $('statusBox').innerHTML = `<span class="danger">Error:</span> ${String(e && e.message ? e.message : e)}`;
+  }
+});
+
+$('randBtn').addEventListener('click', async ()=>{
+  try{
+    randomizeHeader();
+    await hashAndRender();
+  } catch(e){
+    $('statusBox').innerHTML = `<span class="danger">Error:</span> ${String(e && e.message ? e.message : e)}`;
+  }
+});
+
+$('fetchTipBtn').addEventListener('click', async ()=>{
+  try{
+    $('statusBox').innerHTML = `<span class="muted">Fetching latest block from mempool.space…</span>`;
+    await loadLatestFromMempool();
+    await hashAndRender();
+  } catch(e){
+    $('statusBox').innerHTML = `<span class="danger">Fetch error:</span> ${String(e && e.message ? e.message : e)}`;
+  }
+});
+
+$('fetchHeightBtn').addEventListener('click', async ()=>{
+  try{
+    const height = clampU32(Number($('heightIn').value));
+    $('statusBox').innerHTML = `<span class="muted">Fetching height ${height} from mempool.space…</span>`;
+    await loadByHeightFromMempool(height);
+    await hashAndRender();
+  } catch(e){
+    $('statusBox').innerHTML = `<span class="danger">Fetch error:</span> ${String(e && e.message ? e.message : e)}`;
+  }
+});
+
+$('autoFindBtn').addEventListener('click', autoFindDemoNonce);
+$('stopBtn').addEventListener('click', ()=>{
+  stopFlag = true;
+  $('stopBtn').disabled = true;
+});
+
+// Auto-run once
+(async ()=>{
+  try{
+    $('modePill').textContent = "local";
+    await hashAndRender();
+  } catch(e){
+    $('statusBox').innerHTML = `<span class="danger">Error:</span> ${String(e && e.message ? e.message : e)}`;
+  }
+})();
+</script>
+</body>
+</html>
